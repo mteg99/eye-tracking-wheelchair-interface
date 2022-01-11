@@ -48,10 +48,14 @@ def calibrate(camera, gaze_tracker):
         else:
             y_max_samples += y
 
-    print(x_min_samples)
-    print(x_max_samples)
-    print(y_min_samples)
-    print(y_max_samples)
+    calibration_params = []
+    for samples in [x_min_samples, x_max_samples, y_min_samples, y_max_samples]:
+        samples = np.array(samples)
+        samples[samples is not None]
+        np.average(samples[samples is not None])
+        calibration_params.append(np.average(samples[samples is not None]))
+
+    return tuple(calibration_params)
 
 def display_instructions():
     display_text(
@@ -94,6 +98,9 @@ def capture_ratio_samples(camera, gaze_tracker, n):
     for s in range(n):
         frame = camera.read()
         gaze_tracker.refresh(frame)
+        # Invert horizontal ratio such that
+        # Small ratio maps to left side of screen
+        # Large ratio maps to right side of screen
         x_samples.append(1 - gaze_tracker.horizontal_ratio())
         y_samples.append(gaze_tracker.vertical_ratio())
     return x_samples, y_samples
@@ -112,41 +119,38 @@ def blank_frame():
 def main():
     camera, gaze_tracker = initialize()
 
-    calibrate(camera, gaze_tracker)
+    x_min, x_max, y_min, y_max = calibrate(camera, gaze_tracker)
 
-    cv2.destroyAllWindows()
+    while True:
+        input_frame = camera.read()
+
+        gaze_tracker.refresh(input_frame)
+        if not gaze_tracker.pupils_located:
+            continue
+
+        margin = 50
+        x = 1 - gaze_tracker.horizontal_ratio()
+        y = gaze_tracker.vertical_ratio()
+        x = (x - x_min) / (x_max - x_min)
+        y = (y - y_min) / (y_max - y_min)
+        x = int(x * SCREEN_WIDTH)
+        y = int(y * SCREEN_HEIGHT)
+        if x > SCREEN_WIDTH - margin:
+            x = SCREEN_WIDTH - margin
+        if x < margin:
+            x = margin
+        if y > SCREEN_HEIGHT - margin:
+            y = SCREEN_HEIGHT - margin
+        if y < margin:
+            y = margin
+
+        output_frame = blank_frame()
+        cursor_color = (255, 0, 0)
+        cv2.line(output_frame, (x - 10, y), (x + 10, y), cursor_color)
+        cv2.line(output_frame, (x, y - 10), (x, y + 10), cursor_color)
+
+        cv2.imshow(WINDOW_NAME, output_frame)
+        wait(1)
 
 if __name__ == '__main__':
     main()
-
-# while True:
-#     _, input_frame = webcam.read()
-
-#     gaze.refresh(input_frame)
-#     horizontal_ratio = gaze.horizontal_ratio()
-#     vertical_ratio = gaze.vertical_ratio()
-
-#     output_frame = np.zeros([1080,1920,3], dtype=np.uint8)
-#     output_frame.fill(255)
-
-#     if gaze.pupils_located:
-#         color = (255, 0, 0)
-#         horizontal_ratio = (horizontal_ratio - 0.5) / (0.75 - 0.5)
-#         vertical_ratio = (vertical_ratio - 0.5) / (0.75 - 0.5)
-#         x = int(1920 - horizontal_ratio * 1920)
-#         y = int(vertical_ratio * 1080)
-#         cv2.line(output_frame, (x - 10, y), (x + 10, y), color)
-#         cv2.line(output_frame, (x, y - 10), (x, y + 10), color)
-
-#     cv2.putText(output_frame, "Horizontal ratio:  " + str(horizontal_ratio), (90, 130), cv2.FONT_HERSHEY_DUPLEX, 0.9, (147, 58, 31), 1)
-#     cv2.putText(output_frame, "Vertical ratio: " + str(vertical_ratio), (90, 165), cv2.FONT_HERSHEY_DUPLEX, 0.9, (147, 58, 31), 1)
-
-#     cv2.namedWindow("Test", cv2.WND_PROP_FULLSCREEN)
-#     cv2.setWindowProperty("Test",cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
-#     cv2.imshow("Test", output_frame)
-
-#     if cv2.waitKey(1) == 27:
-#         break
-   
-# webcam.release()
-# cv2.destroyAllWindows()
