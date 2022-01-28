@@ -27,11 +27,13 @@ def calibration_frame(dt, sequence, camera, gaze_tracker):
     frame = camera.read()
     gaze_tracker.refresh(frame)
     if not gaze_tracker.pupils_located:
-        sequence.update((None, None))
+        sequence.update(None, None)
     else:
-        x = 1 - gaze_tracker.horizontal_ratio()
-        y = gaze_tracker.vertical_ratio()
-        sequence.update((x, y))
+        # invert horizontal ratio to match pixel coordinate convention
+        # i.e. we want a small horizontal ratio to map to the left side of the screen
+        x_measurement = 1 - gaze_tracker.horizontal_ratio()
+        y_measurement = gaze_tracker.vertical_ratio()
+        sequence.update(x_measurement, y_measurement)
 
 def display_dot(position, delay_ms):
     x = position[0]
@@ -55,12 +57,10 @@ def wait(delay_ms):
 clock = pyglet.clock.Clock()
 camera, gaze_tracker = initialize()
 display_dot((SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2), 1000)
-calibration = CalibrationSequence(0.06, 8, 6, SCREEN_WIDTH, SCREEN_HEIGHT)
+calibration = CalibrationSequence(0.06, 12, 6, SCREEN_WIDTH, SCREEN_HEIGHT)
 clock.schedule_interval(calibration_frame, calibration.dt, calibration, camera, gaze_tracker)
 while not calibration.done:
     clock.tick()
-
-measurements = calibration.get_measurements()
 
 initial_state_mean = [
     SCREEN_WIDTH / 2,
@@ -71,25 +71,17 @@ initial_state_mean = [
     0
 ]
 
-transition_matrix = [
-    [1, 0, 1, 0, 0, 0],
-    [0, 1, 0, 1, 0, 0],
-    [0, 0, 1, 0, 1, 0],
-    [0, 0, 0, 1, 0, 1],
-    [0, 0, 0, 0, 1, 0],
-    [0, 0, 0, 0, 0, 1]
-]
-
-observation_matrix = [
-    [1, 0, 0, 0, 0, 0],
-    [0, 1, 0, 0, 0, 0]
-]
+A, H, W, Q = calibration.get_kalman_parameters()
 
 kf = KalmanFilter(
-    transition_matrices = transition_matrix,
-    observation_matrices = observation_matrix,
+    transition_matrices = A,
+    observation_matrices = H,
+    transition_covariance = W,
+    observation_covariance= Q,
     initial_state_mean = initial_state_mean
 )
+
+measurements = calibration.get_measurements()
 
 kf = kf.em(measurements, n_iter=5)
 means, covariances = kf.filter(measurements)
