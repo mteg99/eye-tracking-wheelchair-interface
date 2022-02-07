@@ -60,7 +60,6 @@ p2.start(50)
 p3.start(50)
 p4.start(50)
 print("\n")
-print("The default speed & direction of motor is LOW & Forward.....")
 print("s-stop f-forward b-backward r-right l-left low-low med-medium high-high e-exit")
 print("\n")    
 
