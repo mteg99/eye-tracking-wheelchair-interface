@@ -14,7 +14,7 @@ SCREEN_HEIGHT = 1080
 WINDOW_NAME = "Kalman Test"
 
 def initialize():
-    camera = VideoCapture(1)
+    camera = VideoCapture(0)
     cv2.namedWindow(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN)
     cv2.setWindowProperty(WINDOW_NAME,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
     gaze_tracker = GazeTracking()
