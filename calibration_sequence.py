@@ -1,15 +1,15 @@
 import math
-from re import X
+from multiprocessing.dummy import Process
+import queue
 import numpy as np
+import multiprocessing as mp
 
 class CalibrationSequence:
-    def __init__(self, dt, period, total_loops, screen_width, screen_height):
-        self.step = 0
-
+    def __init__(self, dt, period, total_loops, screen_width, screen_height, gaze_tracker):
         self.dt = dt
-        self.period = period
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self.gaze_tracker = gaze_tracker
 
         steps_per_loop = int(period / dt)
         self.total_steps = steps_per_loop * total_loops * 2
@@ -29,27 +29,48 @@ class CalibrationSequence:
         self.ax = [ax(self.t[s]) if s < self.total_steps / 2 else 0 for s in range(self.total_steps)]
         self.ay = [ay(self.t[s]) if s >= self.total_steps / 2 else 0 for s in range(self.total_steps)]
 
+        self.step = 0
         self.done = False
         self.x_measurements = []
         self.y_measurements = []
+        self.measurement_buffer = mp.Queue()
+        self.frame_buffer = mp.JoinableQueue()
+        self.frame_readers = []
+        for p in range(mp.cpu_count()):
+            self.frame_readers.append(mp.Process(target=self._read_frames, daemon=True))
+            self.frame_readers[p].start()
 
-    def get_x(self):
-        return self.x[self.step]
+    def __del__(self):
+        self._cleanup_frame_readers()
 
-    def get_y(self):
-        return self.y[self.step]
+    def get_position(self):
+        x = self.x[self.step]
+        y = self.y[self.step]
+        return x, y
 
-    def update(self, x_measurement, y_measurement):
+    def push_frame(self, frame):
         if self.done:
-            print('WARNING: calibration sequence complete, measurement not recorded.')
+            print('WARNING: calibration sequence complete, frame not recorded.')
             return
 
-        self.x_measurements.append(x_measurement)
-        self.y_measurements.append(y_measurement)
+        self.frame_buffer.put_nowait((self.step, frame))
 
         self.step += 1
         if self.step == self.total_steps:
             self.done = True
+            self.frame_buffer.join()
+            measurements = []
+            while len(measurements) < self.total_steps:
+                try:
+                    measurements.append(self.measurement_buffer.get_nowait())
+                except queue.Empty:
+                    continue
+            self._cleanup_frame_readers()
+            measurements.sort()
+            measurements = [m[1] for m in measurements]
+            measurements = list(map(list, zip(*measurements)))
+            self.x_measurements = measurements[0]
+            self.y_measurements = measurements[1]
             self._fill_missing_measurements()
             self._set_bounds()
             self._transform_all()
@@ -82,6 +103,25 @@ class CalibrationSequence:
         y = y * self.screen_height
         return x, y
 
+    def _read_frames(self):
+        while True:
+            try:
+                step, frame = self.frame_buffer.get_nowait()
+                self.gaze_tracker.refresh(frame)
+                if not self.gaze_tracker.pupils_located:
+                    self.measurement_buffer.put_nowait((step, (None, None)))
+                else:
+                    # invert horizontal ratio to match pixel coordinate convention
+                    # i.e. we want a small horizontal ratio to map to the left side of the screen
+                    self.measurement_buffer.put_nowait((
+                        step,
+                        (1 - self.gaze_tracker.horizontal_ratio(),
+                        self.gaze_tracker.vertical_ratio())
+                    ))
+                self.frame_buffer.task_done()
+            except queue.Empty:
+                continue
+
     def _fill_missing_measurements(self):
         prev_x = self.screen_width / 2
         for m in range(len(self.x_measurements)):
@@ -109,3 +149,9 @@ class CalibrationSequence:
             x, y = self.transform(self.x_measurements[m], self.y_measurements[m])
             self.x_measurements[m] = x
             self.y_measurements[m] = y
+
+    def _cleanup_frame_readers(self):
+        for p in self.frame_readers:
+            p.kill()
+        self.frame_buffer.close()
+        self.measurement_buffer.close()
