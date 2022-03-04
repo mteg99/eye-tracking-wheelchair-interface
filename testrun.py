@@ -19,10 +19,10 @@ BUTTONS = ["left", "go", "right"]
 WINDOW_NAME = "Wheelchair Interface"
 
 def initialize():
-    camera = VideoCapture(0)
+    # camera = VideoCapture(0)
     cv2.namedWindow(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN)
     cv2.setWindowProperty(WINDOW_NAME,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
-    return camera
+    #return camera
 
 def check_cursor(currentX, currentY):
     if (currentX >= (LEFT_BUTTON_CENTER - BUTTON_RADIUS) and currentX <= (LEFT_BUTTON_CENTER + BUTTON_RADIUS) 
@@ -43,16 +43,22 @@ def wait(delay_ms):
     if key == 27:
         exit(0)
 
-def main():
-    camera = initialize()
+def blank_frame():
+    frame = np.zeros([SCREEN_HEIGHT,SCREEN_WIDTH, 3], dtype=np.uint8)
+    frame.fill(255)
+    return frame
 
+def main():
+    initialize()
+    HOST, PORT = "192.168.4.1", 9999
+    
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
 
         while True:
-            # input_frame = camera.read()
+                # input_frame = camera.read()
 
-            output_frame = camera.read()
+            output_frame = blank_frame()
             output_frame = cv2.circle(output_frame, (LEFT_BUTTON_CENTER, VERTICAL_CENTER), BUTTON_RADIUS, TURN_COLOR, 5)
             output_frame = cv2.circle(output_frame, (GO_BUTTON_CENTER, VERTICAL_CENTER), BUTTON_RADIUS, FORWARD_COLOR, 5)
             output_frame = cv2.circle(output_frame, (RIGHT_BUTTON_CENTER, VERTICAL_CENTER), BUTTON_RADIUS, TURN_COLOR, 5)
@@ -67,5 +73,5 @@ def main():
             print(received)
 
 if __name__ == '__main__':
-    HOST, PORT = "localhost", 9999
+    
     main()
