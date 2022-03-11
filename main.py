@@ -50,7 +50,7 @@ def wait(delay_ms):
 clock = pyglet.clock.Clock()
 camera, gaze_tracker = initialize()
 display_dot((SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2), 1000)
-calibration = CalibrationSequence(0.12, 8, 6, SCREEN_WIDTH, SCREEN_HEIGHT, gaze_tracker)
+calibration = CalibrationSequence(0.04, 8, 6, SCREEN_WIDTH, SCREEN_HEIGHT, gaze_tracker)
 clock.schedule_interval(calibration_frame, calibration.dt, calibration, camera)
 while not calibration.done:
     clock.tick()
