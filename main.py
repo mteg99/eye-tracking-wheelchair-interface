@@ -2,16 +2,16 @@ import cv2
 import pyglet
 import numpy as np
 from datetime import datetime
-from pykalman.pykalman import KalmanFilter
+from eye_tracking.pykalman.pykalman import KalmanFilter
 import socket
 import sys
 import pickle
 import struct
 
-from GazeTracking.gaze_tracking import GazeTracking
+from eye_tracking.GazeTracking.gaze_tracking import GazeTracking
 
-from bufferless_video_capture import VideoCapture
-from calibration_sequence import CalibrationSequence
+from eye_tracking.bufferless_video_capture import VideoCapture
+from eye_tracking.calibration_sequence import CalibrationSequence
 
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
