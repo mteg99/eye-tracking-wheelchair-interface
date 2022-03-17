@@ -56,7 +56,8 @@ def blank_frame():
 def main():
     initialize()
     HOST, PORT = "192.168.4.1", 9999
-    
+    last_button = None
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
 
@@ -70,6 +71,7 @@ def main():
 
             currentX, currentY  = pyautogui.position()
             button = check_cursor(currentX, currentY)
+            
             print(button)
             if (last_button != button):
                 sock.sendall(bytes(button + "\n", "utf-8"))
