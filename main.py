@@ -1,156 +1,146 @@
 import cv2
+import pyglet
 import numpy as np
+from datetime import datetime
+from pykalman.pykalman import KalmanFilter
+import socket
+import sys
+import pickle
+import struct
 
 from GazeTracking.gaze_tracking import GazeTracking
 
 from bufferless_video_capture import VideoCapture
+from calibration_sequence import CalibrationSequence
 
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
+BUTTON_RADIUS = 200
+TURN_COLOR = (0, 0, 255)
+FORWARD_COLOR = (0, 255, 0)
+LEFT_BUTTON_X = 335
+GO_BUTTON_X = 960
+RIGHT_BUTTON_X = 1585
+LEFT_BUTTON_Y = 540
+GO_BUTTON_Y = 260
+RIGHT_BUTTON_Y = 540
+BUTTONS = ["left", "go", "right"]
 
 WINDOW_NAME = "Wheelchair Interface"
+
+last_button = None
 
 def initialize():
     camera = VideoCapture(0)
     cv2.namedWindow(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN)
-    cv2.setWindowProperty(WINDOW_NAME,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
+    cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     gaze_tracker = GazeTracking()
     return camera, gaze_tracker
 
-def calibrate(camera, gaze_tracker):
-    display_instructions()
-    display_countdown()
+def calibration_frame(dt, sequence, camera):
+    x, y = sequence.get_position()
+    display_dot((x, y), 1)
+    frame = camera.read()
+    sequence.push_frame(frame)
 
-    margin = 50
-    top_left = margin, margin
-    top_right = SCREEN_WIDTH - margin, margin
-    bottom_left = margin, SCREEN_HEIGHT - margin
-    bottom_right = SCREEN_WIDTH - margin, SCREEN_HEIGHT - margin
-
-    n_samples = 5
-    initial_delay_sec = 1
-
-    x_min_samples = []
-    x_max_samples = []
-    y_min_samples = []
-    y_max_samples = []
-    for position in [top_left, top_right, bottom_left, bottom_right]:
-        display_dot(position, initial_delay_sec)
-        x, y = capture_ratio_samples(camera, gaze_tracker, n_samples)
-
-        if position == top_left or position == bottom_left:
-            x_min_samples += x
-        else:
-            x_max_samples += x
-
-        if position == top_left or position == top_right:
-            y_min_samples += y
-        else:
-            y_max_samples += y
-
-    calibration_params = []
-    for samples in [x_min_samples, x_max_samples, y_min_samples, y_max_samples]:
-        samples = np.array(samples)
-        samples[samples is not None]
-        np.average(samples[samples is not None])
-        calibration_params.append(np.average(samples[samples is not None]))
-
-    return tuple(calibration_params)
-
-def display_instructions():
-    display_text(
-        [
-            "To calibrate, focus on the dots as they appear in the corners.",
-            "They will appear in this order: top left, top right, bottom left, bottom right."
-        ],
-        10
-    )
-
-def display_countdown():
-    for i in ['3', '2', '1']:
-        display_text([i], 1)
-
-def display_text(lines, delay_sec):
-    frame = blank_frame()
-    for l in range(len(lines)):
-        cv2.putText(
-            frame,
-            lines[l],
-            (int(SCREEN_WIDTH / 8), int(SCREEN_HEIGHT / 4) + 100 * l),
-            cv2.FONT_HERSHEY_DUPLEX,
-            1,
-            (255, 0, 0)
-        )
-    cv2.imshow(WINDOW_NAME, frame)
-    wait(delay_sec * 1000)
-
-def display_dot(position, delay_sec):
+def display_dot(position, delay_ms):
     x = position[0]
     y = position[1]
     frame = blank_frame()
     cv2.circle(frame, (int(x), int(y)), 25, (255, 0, 0), -1)
     cv2.imshow(WINDOW_NAME, frame)
-    wait(delay_sec * 1000)
-
-def capture_ratio_samples(camera, gaze_tracker, n):
-    x_samples = []
-    y_samples = []
-    for s in range(n):
-        frame = camera.read()
-        gaze_tracker.refresh(frame)
-        # Invert horizontal ratio such that
-        # Small ratio maps to left side of screen
-        # Large ratio maps to right side of screen
-        x_samples.append(1 - gaze_tracker.horizontal_ratio())
-        y_samples.append(gaze_tracker.vertical_ratio())
-    return x_samples, y_samples
-
-def wait(delay_ms):
-    key = cv2.waitKey(delay_ms)
-    # exit on escape key
-    if key == 27:
-        exit(0)
+    wait(delay_ms)
 
 def blank_frame():
     frame = np.zeros([SCREEN_HEIGHT,SCREEN_WIDTH, 3], dtype=np.uint8)
     frame.fill(255)
     return frame
 
-def main():
-    camera, gaze_tracker = initialize()
+def wait(delay_ms):
+    key = cv2.waitKey(delay_ms)
+    # exit on escape key
+    if key == 27:
+        calibration.__del__()
+        exit(0)
 
-    x_min, x_max, y_min, y_max = calibrate(camera, gaze_tracker)
+def check_cursor(currentX, currentY):
+    if (currentX >= (LEFT_BUTTON_X - BUTTON_RADIUS) and currentX <= (LEFT_BUTTON_X + BUTTON_RADIUS) 
+    and currentY >= (LEFT_BUTTON_Y - BUTTON_RADIUS) and currentY <= (LEFT_BUTTON_Y + BUTTON_RADIUS)):
+            return 'l'
+    elif (currentX >= (GO_BUTTON_X - BUTTON_RADIUS) and currentX <= (GO_BUTTON_X + BUTTON_RADIUS) 
+    and currentY >= (GO_BUTTON_Y - BUTTON_RADIUS) and currentY <= (GO_BUTTON_Y + BUTTON_RADIUS)):
+            return 'f'
+    elif (currentX >= (RIGHT_BUTTON_X - BUTTON_RADIUS) and currentX <= (RIGHT_BUTTON_X + BUTTON_RADIUS) 
+    and currentY >= (RIGHT_BUTTON_Y - BUTTON_RADIUS) and currentY <= (RIGHT_BUTTON_Y + BUTTON_RADIUS)):
+            return 'r'
+    else:
+        return 'h'
+
+clock = pyglet.clock.Clock()
+camera, gaze_tracker = initialize()
+display_dot((SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2), 1000)
+calibration = CalibrationSequence(0.04, 8, 6, SCREEN_WIDTH, SCREEN_HEIGHT, gaze_tracker)
+# calibration = CalibrationSequence(0.04, 1, 1, SCREEN_WIDTH, SCREEN_HEIGHT, gaze_tracker)
+clock.schedule_interval(calibration_frame, calibration.dt, calibration, camera)
+while not calibration.done:
+    clock.tick()
+
+initial_state_mean = [
+    SCREEN_WIDTH / 2,
+    SCREEN_HEIGHT / 2,
+    0,
+    0,
+    0,
+    0
+]
+
+A, H, W, Q = calibration.get_kalman_parameters()
+
+kf = KalmanFilter(
+    transition_matrices = A,
+    observation_matrices = H,
+    transition_covariance = W,
+    observation_covariance= Q,
+    initial_state_mean = initial_state_mean
+)
+
+measurements = calibration.get_measurements()
+
+means, covariances = kf.filter(measurements)
+mean = means[-1]
+covariance = covariances[-1]
+
+initialize()
+HOST, PORT = "192.168.4.1", 9999
+    
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+    sock.connect((HOST, PORT))
 
     while True:
-        input_frame = camera.read()
-
-        gaze_tracker.refresh(input_frame)
+        frame = camera.read()
+        gaze_tracker.refresh(frame)
         if not gaze_tracker.pupils_located:
             continue
-
-        margin = 50
         x = 1 - gaze_tracker.horizontal_ratio()
         y = gaze_tracker.vertical_ratio()
-        x = (x - x_min) / (x_max - x_min)
-        y = (y - y_min) / (y_max - y_min)
-        x = int(x * SCREEN_WIDTH)
-        y = int(y * SCREEN_HEIGHT)
-        if x > SCREEN_WIDTH - margin:
-            x = SCREEN_WIDTH - margin
-        if x < margin:
-            x = margin
-        if y > SCREEN_HEIGHT - margin:
-            y = SCREEN_HEIGHT - margin
-        if y < margin:
-            y = margin
+        x, y = calibration.transform(x, y)
+
+        mean, covariance = kf.filter_update(mean, covariance, (x, y))
+        x = int(mean[0])
+        y = int(mean[1])
 
         output_frame = blank_frame()
-        cursor_color = (255, 0, 0)
-        cv2.line(output_frame, (x - 10, y), (x + 10, y), cursor_color)
-        cv2.line(output_frame, (x, y - 10), (x, y + 10), cursor_color)
-
+        output_frame = cv2.circle(output_frame, (LEFT_BUTTON_X, LEFT_BUTTON_Y), BUTTON_RADIUS, TURN_COLOR, 5)
+        output_frame = cv2.circle(output_frame, (GO_BUTTON_X, GO_BUTTON_Y), BUTTON_RADIUS, FORWARD_COLOR, 5)
+        output_frame = cv2.circle(output_frame, (RIGHT_BUTTON_X, RIGHT_BUTTON_Y), BUTTON_RADIUS, TURN_COLOR, 5)
+        output_frame = cv2.circle(output_frame, (int(x), int(y)), 25, (255, 0, 0), -1)
         cv2.imshow(WINDOW_NAME, output_frame)
         wait(1)
 
-if __name__ == '__main__':
-    main()
+        button = check_cursor(x, y)
+        print(button)
+        if (last_button != button):
+            sock.sendall(bytes(button + "\n", "utf-8"))
+            received = str(sock.recv(1024), "utf-8")
+            print(received)
+            last_button = button

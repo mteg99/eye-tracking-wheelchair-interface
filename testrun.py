@@ -2,6 +2,9 @@ import cv2
 import numpy as np
 import pyautogui
 import socket
+import sys
+import pickle
+import struct
 
 from bufferless_video_capture import VideoCapture
 
@@ -17,6 +20,8 @@ RIGHT_BUTTON_CENTER = 1285
 BUTTONS = ["left", "go", "right"]
 
 WINDOW_NAME = "Wheelchair Interface"
+
+last_button = None
 
 def initialize():
     # camera = VideoCapture(0)
@@ -56,8 +61,6 @@ def main():
         sock.connect((HOST, PORT))
 
         while True:
-                # input_frame = camera.read()
-
             output_frame = blank_frame()
             output_frame = cv2.circle(output_frame, (LEFT_BUTTON_CENTER, VERTICAL_CENTER), BUTTON_RADIUS, TURN_COLOR, 5)
             output_frame = cv2.circle(output_frame, (GO_BUTTON_CENTER, VERTICAL_CENTER), BUTTON_RADIUS, FORWARD_COLOR, 5)
@@ -68,10 +71,11 @@ def main():
             currentX, currentY  = pyautogui.position()
             button = check_cursor(currentX, currentY)
             print(button)
-            sock.sendall(bytes(button + "\n", "utf-8"))
-            received = str(sock.recv(1024), "utf-8")
-            print(received)
+            if (last_button != button):
+                sock.sendall(bytes(button + "\n", "utf-8"))
+                received = str(sock.recv(1024), "utf-8")
+                print(received)
+                last_button = button
 
 if __name__ == '__main__':
-    
     main()
