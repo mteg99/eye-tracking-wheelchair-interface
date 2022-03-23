@@ -7,6 +7,7 @@ import socket
 import sys
 import pickle
 import struct
+import pyautogui
 
 from eye_tracking.GazeTracking.gaze_tracking import GazeTracking
 
@@ -111,10 +112,20 @@ mean = means[-1]
 covariance = covariances[-1]
 
 initialize()
-HOST, PORT = "192.168.4.1", 9999
+HOST, PORT = "0.0.0.0", 8089
     
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-    sock.connect((HOST, PORT))
+    print('Socket created')
+
+    sock.bind((HOST, PORT))
+    print('Socket bind complete')
+    sock.listen(10)
+    print('Socket now listening')
+
+    conn, addr = sock.accept()
+    print(f'{addr} connected')
+    data = b'' ### CHANGED
+    payload_size = struct.calcsize("Q") ### CHANGED
 
     while True:
         frame = camera.read()
@@ -129,18 +140,41 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         x = int(mean[0])
         y = int(mean[1])
 
-        output_frame = blank_frame()
+        # x, y = pyautogui.position()
+
+        # Retrieve message size
+        while len(data) < payload_size:
+            data += conn.recv(4096)
+
+        packed_msg_size = data[:payload_size]
+        data = data[payload_size:]
+        msg_size = struct.unpack("Q", packed_msg_size)[0] ### CHANGED
+
+        # Retrieve all data based on message size
+        while len(data) < msg_size:
+            data += conn.recv(4096)
+
+        frame_data = data[:msg_size]
+        data = data[msg_size:]
+
+        # Extract frame
+        output_frame = pickle.loads(frame_data)
+        output_frame = cv2.resize(output_frame, (SCREEN_WIDTH, SCREEN_HEIGHT), interpolation=cv2.INTER_AREA)
+
+
+        # output_frame = blank_frame()
         output_frame = cv2.circle(output_frame, (LEFT_BUTTON_X, LEFT_BUTTON_Y), BUTTON_RADIUS, TURN_COLOR, 5)
         output_frame = cv2.circle(output_frame, (GO_BUTTON_X, GO_BUTTON_Y), BUTTON_RADIUS, FORWARD_COLOR, 5)
         output_frame = cv2.circle(output_frame, (RIGHT_BUTTON_X, RIGHT_BUTTON_Y), BUTTON_RADIUS, TURN_COLOR, 5)
         output_frame = cv2.circle(output_frame, (int(x), int(y)), 25, (255, 0, 0), -1)
+        
         cv2.imshow(WINDOW_NAME, output_frame)
         wait(1)
 
         button = check_cursor(x, y)
         print(button)
         if (last_button != button):
-            sock.sendall(bytes(button + "\n", "utf-8"))
-            received = str(sock.recv(1024), "utf-8")
-            print(received)
+            conn.sendall(bytes(button, "utf-8"))
             last_button = button
+        else:
+            conn.sendall(bytes('p', "utf-8"))
