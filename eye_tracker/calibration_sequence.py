@@ -1,29 +1,38 @@
+import cv2
 import math
-from multiprocessing.dummy import Process
 import queue
+import pyautogui
 import numpy as np
 import multiprocessing as mp
 
+def render_dot(x, y, frame):
+    return cv2.circle(frame, (int(x), int(y)), 25, (255, 0, 0), -1)
+
+def calibration_step(dt, sequence, camera, window):
+    x, y = sequence.get_position()
+    window.display(render_dot(x, y, window.blank_frame()))
+    sequence.update(camera.read())
+
 class CalibrationSequence:
-    def __init__(self, dt, period, total_loops, screen_width, screen_height, gaze_tracker):
+    def __init__(self, dt, period, total_loops, gaze_tracker):
         self.dt = dt
-        self.screen_width = screen_width
-        self.screen_height = screen_height
         self.gaze_tracker = gaze_tracker
+
+        self.screen_width, self.screen_height = pyautogui.size()
 
         steps_per_loop = int(period / dt)
         self.total_steps = steps_per_loop * total_loops * 2
 
         self.t = [(s + 1) * dt for s in range(self.total_steps)]
-        def x(t): return (screen_width / 2) * math.sin(t * ((2 * math.pi) / period)) + (screen_width / 2)
-        def y(t): return (screen_height / 2) * math.sin(t * ((2 * math.pi) / period)) + (screen_height / 2)
-        def vx(t): return ((screen_width * math.pi) / period) * math.cos(t * ((2 * math.pi) / period))
-        def vy(t): return ((screen_height * math.pi) / period) * math.cos(t * ((2 * math.pi) / period))
-        def ax(t): return ((-2 * screen_width * (math.pi ** 2)) / (period ** 2)) * math.sin(t * ((2 * math.pi) / period))
-        def ay(t): return ((-2 * screen_height * (math.pi ** 2)) / (period ** 2)) * math.sin(t * ((2 * math.pi) / period))
+        def x(t): return (self.screen_width / 2) * math.sin(t * ((2 * math.pi) / period)) + (self.screen_width / 2)
+        def y(t): return (self.screen_height / 2) * math.sin(t * ((2 * math.pi) / period)) + (self.screen_height / 2)
+        def vx(t): return ((self.screen_width * math.pi) / period) * math.cos(t * ((2 * math.pi) / period))
+        def vy(t): return ((self.screen_height * math.pi) / period) * math.cos(t * ((2 * math.pi) / period))
+        def ax(t): return ((-2 * self.screen_width * (math.pi ** 2)) / (period ** 2)) * math.sin(t * ((2 * math.pi) / period))
+        def ay(t): return ((-2 * self.screen_height * (math.pi ** 2)) / (period ** 2)) * math.sin(t * ((2 * math.pi) / period))
 
-        self.x = [x(self.t[s]) if s < self.total_steps / 2 else (screen_width / 2) for s in range(self.total_steps)]
-        self.y = [y(self.t[s]) if s >= self.total_steps / 2 else (screen_height / 2) for s in range(self.total_steps)]
+        self.x = [x(self.t[s]) if s < self.total_steps / 2 else (self.screen_width / 2) for s in range(self.total_steps)]
+        self.y = [y(self.t[s]) if s >= self.total_steps / 2 else (self.screen_height / 2) for s in range(self.total_steps)]
         self.vx = [vx(self.t[s]) if s < self.total_steps / 2 else 0 for s in range(self.total_steps)]
         self.vy = [vy(self.t[s]) if s >= self.total_steps / 2 else 0 for s in range(self.total_steps)]
         self.ax = [ax(self.t[s]) if s < self.total_steps / 2 else 0 for s in range(self.total_steps)]
@@ -48,7 +57,7 @@ class CalibrationSequence:
         y = self.y[self.step]
         return x, y
 
-    def push_frame(self, frame):
+    def update(self, frame):
         if self.done:
             print('WARNING: calibration sequence complete, frame not recorded.')
             return
