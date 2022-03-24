@@ -8,6 +8,10 @@ from gaze_tracking import GazeTracking
 
 gaze = GazeTracking()
 webcam = cv2.VideoCapture(0)
+webcam.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+webcam.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+webcam.set(cv2.CAP_PROP_FPS, 30)
 
 while True:
     # We get a new frame from the webcam

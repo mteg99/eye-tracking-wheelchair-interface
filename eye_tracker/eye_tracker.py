@@ -16,7 +16,7 @@ class EyeTracker:
         self.prev_y = self.screen_height / 2
 
         self.gaze_tracker = GazeTracking()
-        self.camera = BufferlessVideoCapture(0, 1080, 720, 30)
+        self.camera = BufferlessVideoCapture(0, 640, 480, 30)
         self.calibration = CalibrationSequence(0.04, 8, 6, self.gaze_tracker)
 
     def calibrate(self):
