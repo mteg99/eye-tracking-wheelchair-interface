@@ -4,14 +4,14 @@
 import cv2, queue, threading
 
 # bufferless VideoCapture
-class VideoCapture:
-
-  def __init__(self, name):
-    self.cap = cv2.VideoCapture(name)
-    self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1080)
-    self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+class BufferlessVideoCapture:
+  def __init__(self, cam_index, image_width, image_height, fps):
+    self.cap = cv2.VideoCapture(cam_index)
+    self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, image_width)
+    self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, image_height)
     self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-    self.cap.set(cv2.CAP_PROP_FPS, 30)
+    self.cap.set(cv2.CAP_PROP_FPS, fps)
+
     self.q = queue.Queue()
     t = threading.Thread(target=self._reader)
     t.daemon = True
@@ -25,7 +25,7 @@ class VideoCapture:
         break
       if not self.q.empty():
         try:
-          self.q.get_nowait()   # discard previous (unprocessed) frame
+          self.q.get_nowait() # discard previous (unprocessed) frame
         except queue.Empty:
           pass
       self.q.put(frame)

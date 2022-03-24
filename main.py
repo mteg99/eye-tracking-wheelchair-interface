@@ -2,17 +2,17 @@ import cv2
 import pyglet
 import numpy as np
 from datetime import datetime
-from eye_tracking.pykalman.pykalman import KalmanFilter
+from eye_tracker.pykalman.pykalman import KalmanFilter
 import socket
 import sys
 import pickle
 import struct
 import pyautogui
 
-from eye_tracking.GazeTracking.gaze_tracking import GazeTracking
+from eye_tracker.GazeTracking.gaze_tracking import GazeTracking
 
-from eye_tracking.bufferless_video_capture import VideoCapture
-from eye_tracking.calibration_sequence import CalibrationSequence
+from utils.bufferless_video_capture import BufferlessVideoCapture
+from eye_tracker.calibration_sequence import CalibrationSequence
 
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
@@ -32,7 +32,7 @@ WINDOW_NAME = "Wheelchair Interface"
 last_button = None
 
 def initialize():
-    camera = VideoCapture(0)
+    camera = BufferlessVideoCapture(0, 1080, 720, 30)
     cv2.namedWindow(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN)
     cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     gaze_tracker = GazeTracking()

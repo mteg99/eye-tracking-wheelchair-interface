@@ -16,5 +16,5 @@ class Button:
         return math.dist([self.x, self.y], [other.x, other.y]) < self.radius + other.radius
 
     def render(self, frame):
-        return cv2.circle(frame, (self.x, self.y), self.radius, self.color, -1)
+        return cv2.circle(frame, (self.x, self.y), self.radius, self.color, 5)
 
