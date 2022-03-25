@@ -12,11 +12,9 @@ class EyeTracker:
         self.window = window
 
         self.screen_width, self.screen_height = pyautogui.size()
-        self.prev_x = self.screen_width / 2
-        self.prev_y = self.screen_height / 2
 
         self.gaze_tracker = GazeTracking()
-        self.camera = BufferlessVideoCapture(0, 640, 480, 30)
+        self.camera = BufferlessVideoCapture(0, 800, 600, 30)
         self.calibration = CalibrationSequence(0.04, 8, 6, self.gaze_tracker)
 
     def calibrate(self):
@@ -55,13 +53,11 @@ class EyeTracker:
         frame = self.camera.read()
         self.gaze_tracker.refresh(frame)
         if not self.gaze_tracker.pupils_located:
-            return self.prev_x, self.prev_y
+            return None, None
         x = 1 - self.gaze_tracker.horizontal_ratio()
         y = self.gaze_tracker.vertical_ratio()
         x, y = self.calibration.transform(x, y)
         self.mean, self.covariance = self.kf.filter_update(self.mean, self.covariance, (x, y))
         x = int(self.mean[0])
         y = int(self.mean[1])
-        self.prev_x = x
-        self.prev_y = y
         return x, y

@@ -12,5 +12,7 @@ eye_tracker.calibrate()
 
 while True:
     x, y = eye_tracker.get_cursor()
+    if x is None or y is None:
+        continue
     window.display(render_dot(x, y, window.blank_frame()))
 
