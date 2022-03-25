@@ -1,10 +1,10 @@
-import cv2
+import sys
 import pyglet
 import pyautogui
 
-from pykalman.pykalman import KalmanFilter
-from GazeTracking.gaze_tracking import GazeTracking
-from calibration_sequence import CalibrationSequence, calibration_step, render_dot
+from eye_tracker.pykalman.pykalman import KalmanFilter
+from eye_tracker.GazeTracking.gaze_tracking import GazeTracking
+from eye_tracker.calibration_sequence import CalibrationSequence, calibration_step, render_dot
 from utils.bufferless_video_capture import BufferlessVideoCapture
 
 class EyeTracker:
@@ -50,6 +50,8 @@ class EyeTracker:
         self.covariance = covariances[-1]
 
     def get_cursor(self):
+        if not self.calibration.done:
+            raise Exception('Calibration must be done before get_cursor() is called.')
         frame = self.camera.read()
         self.gaze_tracker.refresh(frame)
         if not self.gaze_tracker.pupils_located:

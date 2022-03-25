@@ -2,118 +2,34 @@ import cv2
 import pyglet
 import numpy as np
 from datetime import datetime
-from eye_tracker.pykalman.pykalman import KalmanFilter
 import socket
 import sys
 import pickle
 import struct
 import pyautogui
 
+# sys.path.append('eye_tracker')
+from eye_tracker.eye_tracker import EyeTracker
+from frontend.window import Window
+from frontend.user_interface import UserInterface
+from frontend.button import Button
 from eye_tracker.GazeTracking.gaze_tracking import GazeTracking
 
 from utils.bufferless_video_capture import BufferlessVideoCapture
 from eye_tracker.calibration_sequence import CalibrationSequence
 
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
-BUTTON_RADIUS = 200
-TURN_COLOR = (0, 0, 255)
-FORWARD_COLOR = (0, 255, 0)
-LEFT_BUTTON_X = 335
-GO_BUTTON_X = 960
-RIGHT_BUTTON_X = 1585
-LEFT_BUTTON_Y = 540
-GO_BUTTON_Y = 260
-RIGHT_BUTTON_Y = 540
-BUTTONS = ["left", "go", "right"]
+screen_width, screen_height = pyautogui.size()
 
-WINDOW_NAME = "Wheelchair Interface"
+window = Window('Wheelchair Interface')
+eye_tracker = EyeTracker(window)
+eye_tracker.calibrate()
 
-last_button = None
+forward = Button(x=screen_width/2, y=screen_height/5, radius=screen_width/10, color=(0, 255, 0), command='f')
+left = Button(x=screen_width/8, y=screen_height*(2/3), radius=screen_width/10, color=(0, 0, 255), command='l')
+right = Button(x=screen_width*(7/8), y=screen_height*(2/3), radius=screen_width/10, color=(0, 0, 255), command='r')
+ui = UserInterface([forward, left, right], debug_mode=True)
 
-def initialize():
-    camera = BufferlessVideoCapture(0, 1080, 720, 30)
-    cv2.namedWindow(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN)
-    cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-    gaze_tracker = GazeTracking()
-    return camera, gaze_tracker
-
-def calibration_frame(dt, sequence, camera):
-    x, y = sequence.get_position()
-    display_dot((x, y), 1)
-    frame = camera.read()
-    sequence.push_frame(frame)
-
-def display_dot(position, delay_ms):
-    x = position[0]
-    y = position[1]
-    frame = blank_frame()
-    cv2.circle(frame, (int(x), int(y)), 25, (255, 0, 0), -1)
-    cv2.imshow(WINDOW_NAME, frame)
-    wait(delay_ms)
-
-def blank_frame():
-    frame = np.zeros([SCREEN_HEIGHT,SCREEN_WIDTH, 3], dtype=np.uint8)
-    frame.fill(255)
-    return frame
-
-def wait(delay_ms):
-    key = cv2.waitKey(delay_ms)
-    # exit on escape key
-    if key == 27:
-        calibration.__del__()
-        exit(0)
-
-def check_cursor(currentX, currentY):
-    if (currentX >= (LEFT_BUTTON_X - BUTTON_RADIUS) and currentX <= (LEFT_BUTTON_X + BUTTON_RADIUS) 
-    and currentY >= (LEFT_BUTTON_Y - BUTTON_RADIUS) and currentY <= (LEFT_BUTTON_Y + BUTTON_RADIUS)):
-            return 'l'
-    elif (currentX >= (GO_BUTTON_X - BUTTON_RADIUS) and currentX <= (GO_BUTTON_X + BUTTON_RADIUS) 
-    and currentY >= (GO_BUTTON_Y - BUTTON_RADIUS) and currentY <= (GO_BUTTON_Y + BUTTON_RADIUS)):
-            return 'f'
-    elif (currentX >= (RIGHT_BUTTON_X - BUTTON_RADIUS) and currentX <= (RIGHT_BUTTON_X + BUTTON_RADIUS) 
-    and currentY >= (RIGHT_BUTTON_Y - BUTTON_RADIUS) and currentY <= (RIGHT_BUTTON_Y + BUTTON_RADIUS)):
-            return 'r'
-    else:
-        return 'h'
-
-clock = pyglet.clock.Clock()
-camera, gaze_tracker = initialize()
-display_dot((SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2), 1000)
-calibration = CalibrationSequence(0.04, 8, 6, SCREEN_WIDTH, SCREEN_HEIGHT, gaze_tracker)
-# calibration = CalibrationSequence(0.04, 1, 1, SCREEN_WIDTH, SCREEN_HEIGHT, gaze_tracker)
-clock.schedule_interval(calibration_frame, calibration.dt, calibration, camera)
-while not calibration.done:
-    clock.tick()
-
-initial_state_mean = [
-    SCREEN_WIDTH / 2,
-    SCREEN_HEIGHT / 2,
-    0,
-    0,
-    0,
-    0
-]
-
-A, H, W, Q = calibration.get_kalman_parameters()
-
-kf = KalmanFilter(
-    transition_matrices = A,
-    observation_matrices = H,
-    transition_covariance = W,
-    observation_covariance= Q,
-    initial_state_mean = initial_state_mean
-)
-
-measurements = calibration.get_measurements()
-
-means, covariances = kf.filter(measurements)
-mean = means[-1]
-covariance = covariances[-1]
-
-initialize()
-HOST, PORT = "0.0.0.0", 8089
-    
+HOST, PORT = "0.0.0.0", 8089    
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
     print('Socket created')
 
@@ -128,20 +44,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
     payload_size = struct.calcsize("Q") ### CHANGED
 
     while True:
-        frame = camera.read()
-        gaze_tracker.refresh(frame)
-        if not gaze_tracker.pupils_located:
-            continue
-        x = 1 - gaze_tracker.horizontal_ratio()
-        y = gaze_tracker.vertical_ratio()
-        x, y = calibration.transform(x, y)
-
-        mean, covariance = kf.filter_update(mean, covariance, (x, y))
-        x = int(mean[0])
-        y = int(mean[1])
-
+        x, y = eye_tracker.get_cursor()
         # x, y = pyautogui.position()
-
         # Retrieve message size
         while len(data) < payload_size:
             data += conn.recv(4096)
@@ -159,22 +63,15 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
 
         # Extract frame
         output_frame = pickle.loads(frame_data)
-        output_frame = cv2.resize(output_frame, (SCREEN_WIDTH, SCREEN_HEIGHT), interpolation=cv2.INTER_AREA)
-
-
-        # output_frame = blank_frame()
-        output_frame = cv2.circle(output_frame, (LEFT_BUTTON_X, LEFT_BUTTON_Y), BUTTON_RADIUS, TURN_COLOR, 5)
-        output_frame = cv2.circle(output_frame, (GO_BUTTON_X, GO_BUTTON_Y), BUTTON_RADIUS, FORWARD_COLOR, 5)
-        output_frame = cv2.circle(output_frame, (RIGHT_BUTTON_X, RIGHT_BUTTON_Y), BUTTON_RADIUS, TURN_COLOR, 5)
-        output_frame = cv2.circle(output_frame, (int(x), int(y)), 25, (255, 0, 0), -1)
+        output_frame = cv2.resize(output_frame, (screen_width, screen_height), interpolation=cv2.INTER_AREA)
         
-        cv2.imshow(WINDOW_NAME, output_frame)
-        wait(1)
+        if not x or not y:
+            continue
+        command = ui.update_cursor(x, y)
+        output_frame = ui.render(output_frame)
+        window.display(output_frame)
 
-        button = check_cursor(x, y)
-        print(button)
-        if (last_button != button):
-            conn.sendall(bytes(button, "utf-8"))
-            last_button = button
-        else:
+        if command is None:
             conn.sendall(bytes('p', "utf-8"))
+        else:
+            conn.sendall(bytes(command, "utf-8"))            

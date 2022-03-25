@@ -1,7 +1,7 @@
 import pyautogui
-from button import Button
-from window import Window
-from user_interface import UserInterface
+from frontend.button import Button
+from frontend.window import Window
+from frontend.user_interface import UserInterface
 
 window = Window('User Interface Test')
 screen_width, screen_height = pyautogui.size()

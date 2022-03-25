@@ -1,10 +1,6 @@
-import sys
-
-sys.path.append('..')
-
-from eye_tracker import EyeTracker
+from eye_tracker.eye_tracker import EyeTracker
 from frontend.window import Window
-from calibration_sequence import render_dot
+from eye_tracker.calibration_sequence import render_dot
 
 window = Window('Test Eye Tracker')
 eye_tracker = EyeTracker(window)
