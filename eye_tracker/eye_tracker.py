@@ -1,4 +1,3 @@
-import sys
 import pyglet
 import pyautogui
 
@@ -8,14 +7,14 @@ from eye_tracker.calibration_sequence import CalibrationSequence, calibration_st
 from utils.bufferless_video_capture import BufferlessVideoCapture
 
 class EyeTracker:
-    def __init__(self, window):
+    def __init__(self, window, use_mp=True):
         self.window = window
 
         self.screen_width, self.screen_height = pyautogui.size()
 
         self.gaze_tracker = GazeTracking()
         self.camera = BufferlessVideoCapture(0, 800, 600, 30)
-        self.calibration = CalibrationSequence(0.04, 8, 6, self.gaze_tracker)
+        self.calibration = CalibrationSequence(0.04, 8, 6, self.gaze_tracker, use_mp)
 
     def calibrate(self):
         self.window.display(render_dot(self.screen_width / 2, self.screen_height / 2, self.window.blank_frame()), 1000)

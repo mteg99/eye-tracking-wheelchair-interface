@@ -5,18 +5,11 @@ import pyautogui
 import numpy as np
 import multiprocessing as mp
 
-def render_dot(x, y, frame):
-    return cv2.circle(frame, (int(x), int(y)), 25, (255, 0, 0), -1)
-
-def calibration_step(dt, sequence, camera, window):
-    x, y = sequence.get_position()
-    window.display(render_dot(x, y, window.blank_frame()))
-    sequence.update(camera.read())
-
 class CalibrationSequence:
-    def __init__(self, dt, period, total_loops, gaze_tracker):
+    def __init__(self, dt, period, total_loops, gaze_tracker, use_mp=True):
         self.dt = dt
         self.gaze_tracker = gaze_tracker
+        self.use_mp = use_mp
 
         self.screen_width, self.screen_height = pyautogui.size()
 
@@ -42,12 +35,14 @@ class CalibrationSequence:
         self.done = False
         self.x_measurements = []
         self.y_measurements = []
-        self.measurement_buffer = mp.Queue()
-        self.frame_buffer = mp.JoinableQueue()
-        self.frame_readers = []
-        for p in range(mp.cpu_count()):
-            self.frame_readers.append(mp.Process(target=self._read_frames, daemon=True))
-            self.frame_readers[p].start()
+
+        if use_mp:
+            self.measurement_buffer = mp.Queue()
+            self.frame_buffer = mp.JoinableQueue()
+            self.frame_readers = []
+            for p in range(mp.cpu_count()):
+                self.frame_readers.append(mp.Process(target=self._read_frames, daemon=True))
+                self.frame_readers[p].start()
 
     def __del__(self):
         self._cleanup_frame_readers()
@@ -62,24 +57,36 @@ class CalibrationSequence:
             print('WARNING: calibration sequence complete, frame not recorded.')
             return
 
-        self.frame_buffer.put_nowait((self.step, frame))
+        if self.use_mp:
+            self.frame_buffer.put_nowait((self.step, frame))
+        else:
+            self.gaze_tracker.refresh(frame)
+            if not self.gaze_tracker.pupils_located:
+                self.x_measurements.append(None)
+                self.y_measurements.append(None)
+            else:
+                # invert horizontal ratio to match pixel coordinate convention
+                # i.e. we want a small horizontal ratio to map to the left side of the screen
+                self.x_measurements.append(1 - self.gaze_tracker.horizontal_ratio())
+                self.y_measurements.append(self.gaze_tracker.vertical_ratio())
 
         self.step += 1
         if self.step == self.total_steps:
             self.done = True
-            self.frame_buffer.join()
-            measurements = []
-            while len(measurements) < self.total_steps:
-                try:
-                    measurements.append(self.measurement_buffer.get_nowait())
-                except queue.Empty:
-                    continue
-            self._cleanup_frame_readers()
-            measurements.sort()
-            measurements = [m[1] for m in measurements]
-            measurements = list(map(list, zip(*measurements)))
-            self.x_measurements = measurements[0]
-            self.y_measurements = measurements[1]
+            if self.use_mp:
+                self.frame_buffer.join()
+                measurements = []
+                while len(measurements) < self.total_steps:
+                    try:
+                        measurements.append(self.measurement_buffer.get_nowait())
+                    except queue.Empty:
+                        continue
+                self._cleanup_frame_readers()
+                measurements.sort()
+                measurements = [m[1] for m in measurements]
+                measurements = list(map(list, zip(*measurements)))
+                self.x_measurements = measurements[0]
+                self.y_measurements = measurements[1]
             self._fill_missing_measurements()
             self._set_bounds()
             self._transform_all()
@@ -164,3 +171,11 @@ class CalibrationSequence:
             p.kill()
         self.frame_buffer.close()
         self.measurement_buffer.close()
+
+def calibration_step(dt, sequence, camera, window):
+    x, y = sequence.get_position()
+    window.display(render_dot(x, y, window.blank_frame()))
+    sequence.update(camera.read())
+
+def render_dot(x, y, frame):
+    return cv2.circle(frame, (int(x), int(y)), 25, (255, 0, 0), -1)

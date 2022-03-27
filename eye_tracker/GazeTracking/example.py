@@ -8,8 +8,8 @@ from gaze_tracking import GazeTracking
 
 gaze = GazeTracking()
 webcam = cv2.VideoCapture(0)
-webcam.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+webcam.set(cv2.CAP_PROP_FRAME_WIDTH, 800)
+webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)
 webcam.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
 webcam.set(cv2.CAP_PROP_FPS, 30)
 
