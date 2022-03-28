@@ -1,14 +1,15 @@
-import platform
+import sys
 
 from eye_tracker.eye_tracker import EyeTracker
 from frontend.window import Window
-from eye_tracker.calibration_sequence import render_dot
+from eye_tracker.calibration import render_dot
 
 window = Window('Test Eye Tracker')
-if platform.system() == 'Windows':
-    eye_tracker = EyeTracker(window, use_mp=False)
+if len(sys.argv) > 1:
+    eye_tracker = EyeTracker(window, calibration_file=sys.argv[1])
 else:
-    eye_tracker = EyeTracker(window, use_mp=True)
+    eye_tracker = EyeTracker(window)
+window.add_cleanup_routine(eye_tracker.__del__)
 eye_tracker.calibrate()
 
 while True:

@@ -16,6 +16,7 @@ class Window:
         key = cv2.waitKey(delay_ms)
         # exit on escape key
         if key == 27:
+            cv2.destroyWindow(self.name)
             for routine in self.cleanup_routines:
                 routine()
             exit(0)

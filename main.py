@@ -8,15 +8,10 @@ import pickle
 import struct
 import pyautogui
 
-# sys.path.append('eye_tracker')
 from eye_tracker.eye_tracker import EyeTracker
 from frontend.window import Window
 from frontend.user_interface import UserInterface
 from frontend.button import Button
-from eye_tracker.GazeTracking.gaze_tracking import GazeTracking
-
-from utils.bufferless_video_capture import BufferlessVideoCapture
-from eye_tracker.calibration_sequence import CalibrationSequence
 
 screen_width, screen_height = pyautogui.size()
 
