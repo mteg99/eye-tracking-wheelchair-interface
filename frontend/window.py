@@ -3,8 +3,10 @@ import pyautogui
 import numpy as np
 
 class Window:
-    def __init__(self, name):
+    def __init__(self, name, width, height):
         self.name = name
+        self.width = width
+        self.height = height
 
         cv2.namedWindow(name, cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty(name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
@@ -22,8 +24,7 @@ class Window:
             exit(0)
 
     def blank_frame(self):
-        screen_width, screen_height = pyautogui.size()
-        frame = np.zeros([screen_height, screen_width, 3], dtype=np.uint8)
+        frame = np.zeros([self.height, self.width, 3], dtype=np.uint8)
         frame.fill(255)
         return frame
 

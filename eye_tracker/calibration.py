@@ -6,10 +6,9 @@ import pyautogui
 import numpy as np
 import pandas as pd
 import multiprocessing as mp
-from time import sleep
 
 class Calibration:
-    def __init__(self, dt, period, total_loops, gaze_tracker, collect_data=True, file_name=None, use_mp=True):
+    def __init__(self, dt, period, total_loops, screen_width, screen_height, gaze_tracker, collect_data=True, file_name=None, use_mp=True):
         if not collect_data and not file_name:
             raise Exception('Calibration must either collect data or load data.')
         
@@ -21,7 +20,8 @@ class Calibration:
             self.gaze_tracker = gaze_tracker
             self.use_mp = use_mp
 
-            self.screen_width, self.screen_height = pyautogui.size()
+            self.screen_width = screen_width
+            self.screen_height = screen_height
 
             steps_per_loop = int(period / dt)
             self.total_steps = steps_per_loop * total_loops * 2

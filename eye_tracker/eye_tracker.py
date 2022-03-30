@@ -10,17 +10,15 @@ class EyeTracker:
     def __init__(self, window, calibration_file=None, use_mp=True):
         self.window = window
 
-        self.screen_width, self.screen_height = pyautogui.size()
-
         self.gaze_tracker = GazeTracking()
         self.camera = BufferlessVideoCapture(0, 800, 600, 30)
-        self.calibration = Calibration(0.04, 8, 6, self.gaze_tracker, file_name=calibration_file, use_mp=use_mp)
+        self.calibration = Calibration(0.04, 8, 6, window.width, window.height, self.gaze_tracker, file_name=calibration_file, use_mp=use_mp)
 
     def __del__(self):
         self.calibration.__del__()
 
     def calibrate(self):
-        self.window.display(render_dot(self.screen_width / 2, self.screen_height / 2, self.window.blank_frame()), 1000)
+        self.window.display(render_dot(self.window.width / 2, self.window.height / 2, self.window.blank_frame()), 1000)
 
         clock = pyglet.clock.Clock()
         clock.schedule_interval(calibration_step, self.calibration.dt, self.calibration, self.camera, self.window)
@@ -28,8 +26,8 @@ class EyeTracker:
             clock.tick()
 
         initial_state_mean = [
-            self.screen_width / 2,
-            self.screen_height / 2,
+            self.window.width / 2,
+            self.window.height / 2,
             0,
             0,
             0,
