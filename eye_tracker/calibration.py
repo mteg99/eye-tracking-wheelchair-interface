@@ -2,7 +2,6 @@ import os
 import cv2
 import math
 import queue
-import pyautogui
 import numpy as np
 import pandas as pd
 import multiprocessing as mp
@@ -27,9 +26,8 @@ class Calibration:
                 os.mkdir(data_dir)
 
             self.file_path = os.path.join(data_dir, self.file_name)
-            if not os.path.exists(self.file_path):
-                raise Exception('Calibration file {} could not be found.'.format(self.file_name))
-            self.file = pd.read_csv(self.file_path)                
+            if os.path.exists(self.file_path):
+                self.file = pd.read_csv(self.file_path)   
         
         if collect_data:
             self.dt = dt
@@ -75,7 +73,7 @@ class Calibration:
 
     def __del__(self):
         if self.collect_data and self.file_name:
-            self._save_calibration_data()
+            self._save_data()
         self._cleanup_frame_readers()
 
     def get_position(self):
@@ -177,7 +175,7 @@ class Calibration:
                 continue
     
     def _process_data(self):
-        if self.file_name:
+        if os.path.exists(self.file_path):
             self._load_data()
         self._set_bounds()
         self._transform_all()
@@ -231,7 +229,7 @@ class Calibration:
             self.x_measurements[i] = x
             self.y_measurements[i] = y
 
-    def _save_calibration_data(self):
+    def _save_data(self):
         if not self.done:
             print('WARNING: calibration interrupted, data not saved.')
             return
@@ -246,7 +244,7 @@ class Calibration:
                 print('Data will not be saved.')
                 return
         
-        data = pd.DataFrame({
+        pd.DataFrame({
             'x_ratios': self.x_ratios,
             'y_ratios': self.y_ratios,
             'x': self.x,
