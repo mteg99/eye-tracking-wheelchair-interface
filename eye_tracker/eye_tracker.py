@@ -7,12 +7,23 @@ from eye_tracker.calibration import Calibration, calibration_step, render_dot
 from utils.bufferless_video_capture import BufferlessVideoCapture
 
 class EyeTracker:
-    def __init__(self, window, calibration_file=None, use_mp=True):
+    def __init__(self, window, collect_data=False, calibration_file=None, use_mp=True):
         self.window = window
+        self.collect_data = collect_data
 
         self.gaze_tracker = GazeTracking()
         self.camera = BufferlessVideoCapture(0, 800, 600, 30)
-        self.calibration = Calibration(0.04, 8, 6, window.width, window.height, self.gaze_tracker, file_name=calibration_file, use_mp=use_mp)
+        self.calibration = Calibration(
+            0.04, 
+            8, 
+            6, 
+            window.width, 
+            window.height, 
+            self.gaze_tracker, 
+            collect_data=collect_data, 
+            file_name=calibration_file, 
+            use_mp=use_mp
+        )
 
     def __del__(self):
         self.calibration.__del__()
@@ -20,10 +31,11 @@ class EyeTracker:
     def calibrate(self):
         self.window.display(render_dot(self.window.width / 2, self.window.height / 2, self.window.blank_frame()), 1000)
 
-        clock = pyglet.clock.Clock()
-        clock.schedule_interval(calibration_step, self.calibration.dt, self.calibration, self.camera, self.window)
-        while not self.calibration.done:
-            clock.tick()
+        if self.collect_data:
+            clock = pyglet.clock.Clock()
+            clock.schedule_interval(calibration_step, self.calibration.dt, self.calibration, self.camera, self.window)
+            while not self.calibration.done:
+                clock.tick()
 
         initial_state_mean = [
             self.window.width / 2,
