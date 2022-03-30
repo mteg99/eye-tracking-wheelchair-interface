@@ -71,16 +71,17 @@ def server_connection():
             else:
                 conn.sendall(bytes(command, "utf-8"))
 
-COLLECT_DATA = False
+COLLECT_DATA = True
 if len(sys.argv) > 1:
     eye_tracker = EyeTracker(window, collect_data=COLLECT_DATA, calibration_file=sys.argv[1])
 else:
     eye_tracker = EyeTracker(window, collect_data=COLLECT_DATA)
+window.add_cleanup_routine(eye_tracker.__del__)
 eye_tracker.calibrate()
 
 forward = Button(x=SCREEN_WIDTH/2, y=SCREEN_HEIGHT/5, radius=SCREEN_WIDTH/10, color=(0, 255, 0), command='f')
-left = Button(x=SCREEN_WIDTH/8, y=SCREEN_HEIGHT*(2/3), radius=SCREEN_WIDTH/10, color=(0, 0, 255), command='l')
-right = Button(x=SCREEN_WIDTH*(7/8), y=SCREEN_HEIGHT*(2/3), radius=SCREEN_WIDTH/10, color=(0, 0, 255), command='r')
+left = Button(x=SCREEN_WIDTH/8, y=SCREEN_HEIGHT/2, radius=SCREEN_WIDTH/10, color=(0, 0, 255), command='l')
+right = Button(x=SCREEN_WIDTH*(7/8), y=SCREEN_HEIGHT/2, radius=SCREEN_WIDTH/10, color=(0, 0, 255), command='r')
 ui = UserInterface([forward, left, right], debug_mode=True)
 
 command = None
