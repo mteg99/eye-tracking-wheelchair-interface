@@ -27,7 +27,9 @@ class Calibration:
 
             self.file_path = os.path.join(data_dir, self.file_name)
             if os.path.exists(self.file_path):
-                self.file = pd.read_csv(self.file_path)   
+                self.file = pd.read_csv(self.file_path)
+            elif not collect_data:
+                raise Exception('File {} cannot be found.'.format(file_name))
         
         if collect_data:
             self.dt = dt
@@ -175,7 +177,7 @@ class Calibration:
                 continue
     
     def _process_data(self):
-        if os.path.exists(self.file_path):
+        if self.file_name and os.path.exists(self.file_path):
             self._load_data()
         self._set_bounds()
         self._transform_all()

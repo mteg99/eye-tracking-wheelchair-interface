@@ -7,7 +7,7 @@ from eye_tracker.calibration import Calibration, calibration_step, render_dot
 from utils.bufferless_video_capture import BufferlessVideoCapture
 
 class EyeTracker:
-    def __init__(self, window, collect_data=False, calibration_file=None, use_mp=True):
+    def __init__(self, window, collect_data=True, calibration_file=None, use_mp=True):
         self.window = window
         self.collect_data = collect_data
 
