@@ -26,15 +26,13 @@ class UserInterface:
                 if buttons[i].is_overlapping(buttons[j]):
                     raise ValueError('Overlapping buttons are not allowed.')
 
-    def render(self, frame):
-        if self.debug_mode:
-            frame = cv2.putText(frame, self.prev_command.upper(), (100, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 0, 0), 2)
+    def adjust_cursor(self, x, y):
         for button in self.buttons:
-            frame = button.render(frame)
-        frame = cv2.circle(frame, (int(self.cursor_x), int(self.cursor_y)), 25, (255, 0, 0), -1)
-        return frame
+            if button.is_within(x, y):
+                return button.adjust_cursor(x, y)
+        return None, None
 
-    def update_cursor(self, x, y):
+    def get_command(self, x, y):
         self.cursor_x = int(x)
         self.cursor_y = int(y)
 
@@ -51,3 +49,11 @@ class UserInterface:
             self.prev_command = command
 
         return command
+
+    def render(self, frame):
+        if self.debug_mode:
+            frame = cv2.putText(frame, self.prev_command.upper(), (100, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 0, 0), 2)
+        for button in self.buttons:
+            frame = button.render(frame)
+        frame = cv2.circle(frame, (int(self.cursor_x), int(self.cursor_y)), 25, (255, 0, 0), -1)
+        return frame

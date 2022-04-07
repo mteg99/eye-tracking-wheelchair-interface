@@ -1,4 +1,5 @@
 import cv2
+import math
 import pyglet
 import numpy as np
 from datetime import datetime
@@ -39,8 +40,6 @@ def server_connection():
         payload_size = struct.calcsize("Q") ### CHANGED
 
         while True:
-            # x, y = eye_tracker.get_cursor()
-            # x, y = pyautogui.position()
             # Retrieve message size
             while len(data) < payload_size:
                 data += conn.recv(4096)
@@ -71,7 +70,7 @@ def server_connection():
             else:
                 conn.sendall(bytes(command, "utf-8"))
 
-COLLECT_DATA = True
+COLLECT_DATA = False
 if len(sys.argv) > 1:
     eye_tracker = EyeTracker(window, collect_data=COLLECT_DATA, calibration_file=sys.argv[1])
 else:
@@ -79,9 +78,9 @@ else:
 window.add_cleanup_routine(eye_tracker.__del__)
 eye_tracker.calibrate()
 
-forward = Button(x=SCREEN_WIDTH/2, y=SCREEN_HEIGHT/5, radius=SCREEN_WIDTH/10, color=(0, 255, 0), command='f')
-left = Button(x=SCREEN_WIDTH/8, y=SCREEN_HEIGHT/2, radius=SCREEN_WIDTH/10, color=(0, 0, 255), command='l')
-right = Button(x=SCREEN_WIDTH*(7/8), y=SCREEN_HEIGHT/2, radius=SCREEN_WIDTH/10, color=(0, 0, 255), command='r')
+forward = Button(SCREEN_WIDTH, SCREEN_HEIGHT, x=1/2, y=1/5, radius=1/10, color=(0, 255, 0), command='f')
+left = Button(SCREEN_WIDTH, SCREEN_HEIGHT, x=1/8, y=1/2, radius=1/10, color=(0, 0, 255), command='l')
+right = Button(SCREEN_WIDTH, SCREEN_HEIGHT, x=7/8, y=1/2, radius=1/10, color=(0, 0, 255), command='r')
 ui = UserInterface([forward, left, right], debug_mode=True)
 
 command = None
@@ -92,11 +91,20 @@ t.start()
 last_frame = window.blank_frame()
 frame = window.blank_frame()
 last_command = None
+
 while True:
     x, y = eye_tracker.get_cursor()
+    # x, y = pyautogui.position()
     if not x or not y:
-        continue
-    command = ui.update_cursor(x, y)
+        command = 'h'
+    else:
+        x_adjusted, y_adjusted = ui.adjust_cursor(x, y)
+        if not x_adjusted or not y_adjusted:
+            command = ui.get_command(x, y)
+        else:
+            eye_tracker.update_cursor(x_adjusted, y_adjusted)
+            command = ui.get_command(x_adjusted, y_adjusted)
+
     if command != last_command:
         commands.put(command)
         last_command = command

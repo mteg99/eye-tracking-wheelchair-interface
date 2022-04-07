@@ -75,3 +75,8 @@ class EyeTracker:
         x = int(self.mean[0])
         y = int(self.mean[1])
         return x, y
+
+    def update_cursor(self, x, y):
+        if not self.calibration.done:
+            raise Exception('Calibration must be done before update_cursor() is called.')
+        self.mean, self.covariance = self.kf.filter_update(self.mean, self.covariance, (x, y))
