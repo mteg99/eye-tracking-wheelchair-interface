@@ -76,7 +76,6 @@ class Calibration:
     def __del__(self):
         if self.collect_data and self.file_name:
             self._save_data()
-        self._cleanup_frame_readers()
 
     def get_position(self):
         if not self.collect_data:
