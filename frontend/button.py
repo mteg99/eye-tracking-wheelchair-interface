@@ -2,9 +2,9 @@ import math
 import cv2
 
 D = 1
-KX = 100
-KY = 100
-M = 1
+KX = 1000
+KY = 1000
+M = 10
 
 DT = 0.1
 

@@ -6,7 +6,7 @@ from eye_tracker.eye_tracker import EyeTracker
 from frontend.window import Window
 from eye_tracker.calibration import render_dot
 
-collect_data = True
+collect_data = False
 window = Window('Test Eye Tracker', 1920, 1080)
 if len(sys.argv) > 1:
     eye_tracker = EyeTracker(window, collect_data=collect_data, calibration_file=sys.argv[1])

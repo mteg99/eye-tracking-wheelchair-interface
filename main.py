@@ -19,6 +19,24 @@ from frontend.button import Button
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT  = 1080
 
+D = 1
+KX = 1
+KY = 2
+M = 1
+
+DT = 0.1
+
+AX = -(DT*KX)/M
+AY = -(DT*KY)/M
+B = (1 - (DT*D)/M)
+C = DT/M
+
+FX = (SCREEN_WIDTH / 2) * (KX / M) * M
+FY = (SCREEN_HEIGHT / 2) * (KY / M) * M
+
+prev_vx = 0
+prev_vy = 0
+
 window = Window('Wheelchair Interface', 1920, 1080)
 output_frame = window.blank_frame()
 frames = Queue()
@@ -78,9 +96,9 @@ else:
 window.add_cleanup_routine(eye_tracker.__del__)
 eye_tracker.calibrate()
 
-forward = Button(SCREEN_WIDTH, SCREEN_HEIGHT, x=1/2, y=1/5, radius=1/10, color=(0, 255, 0), command='f')
-left = Button(SCREEN_WIDTH, SCREEN_HEIGHT, x=1/8, y=1/2, radius=1/10, color=(0, 0, 255), command='l')
-right = Button(SCREEN_WIDTH, SCREEN_HEIGHT, x=7/8, y=1/2, radius=1/10, color=(0, 0, 255), command='r')
+forward = Button(SCREEN_WIDTH, SCREEN_HEIGHT, x=1/2, y=1/4, radius=1/9, color=(0, 255, 0), command='f')
+left = Button(SCREEN_WIDTH, SCREEN_HEIGHT, x=1/6, y=1/2, radius=1/9, color=(255, 0, 0), command='l')
+right = Button(SCREEN_WIDTH, SCREEN_HEIGHT, x=5/6, y=1/2, radius=1/9, color=(255, 0, 0), command='r')
 ui = UserInterface([forward, left, right], debug_mode=True)
 
 command = None
@@ -98,8 +116,15 @@ while True:
     if not x or not y:
         command = 'h'
     else:
+        x = x + DT * prev_vx
+        y = y + DT * prev_vy
+        vx = AX * x + B * prev_vx + C * FX
+        vy = AY * y + B * prev_vy + C * FY
+        prev_vx = vx
+        prev_vy = vy
         x_adjusted, y_adjusted = ui.adjust_cursor(x, y)
         if not x_adjusted or not y_adjusted:
+            # eye_tracker.update_cursor(x, y)
             command = ui.get_command(x, y)
         else:
             eye_tracker.update_cursor(x_adjusted, y_adjusted)
